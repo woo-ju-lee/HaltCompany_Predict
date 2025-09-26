@@ -5,8 +5,6 @@ library(xml2)
 library(readr)
 library(httr)
 library(jsonlite)
-library(RSQLite)
-library(DBI)
 
 ###함수 생성
 
@@ -64,6 +62,18 @@ class_transf <- function(data_df) {
   return(data_df)
 }
 
+company_status <- function(code) {
+  url = "https://opendart.fss.or.kr/api/company.json?crtfc_key="
+  crtfc_key = Sys.getenv("DART_FSS")
+  corp_code = code
+  
+  res = read_json(paste0(url, crtfc_key, "&corp_code=", corp_code))
+  
+  res = bind_rows(res)
+  
+  return(res)
+}
+
 ###동작 라인
 corp_df <- corp_func()
 
@@ -71,11 +81,19 @@ stock_df <- corp_df[-which(corp_df$stock_code == " "), ]
 
 clean_stock <- class_transf(stock_df)
 
-corp_info <- function(url = "https://opendart.fss.or.kr/api/list.json?crtfc_key=", key = Sys.getenv("DART_FSS"), pblntf_ty = "A", corp_cls) {
-  read_json(paste0(url, key, "&", pblntf_ty, "&", corp_cls))
-}
+stock_info <- map(1:length(clean_stock$corp_code), function(i) {
+  company_status(clean_stock$corp_code[i])
+})
 
-corp_info(corp_cls = "Y")
+stock_info <- stock_info %>% bind_rows()
 
-con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
-dbWriteTable(con, "clean_stock", clean_stock)
+stock_info$est_dt <- as.Date(stock_info$est_dt, "%Y%m%d")
+
+stock_info$ceo_nm <- gsub(" ", "", stock_info$ceo_nm)
+
+stock_info <- stock_info %>% select(
+  corp_code, corp_name, corp_name_eng, 
+  stock_name, stock_code, ceo_nm, 
+  corp_cls, jurir_no, bizr_no, 
+  induty_code, est_dt, acc_mt
+)
