@@ -27,10 +27,10 @@ dbExecute(con, "
     jurir_no      TEXT NOT NULL,
     bizr_no       TEXT NOT NULL,
     induty_code   TEXT,
-    est_dt        DATE,
+    est_dt        TEXT,
     acc_mt        TEXT,
     PRIMARY KEY (bizr_no),
-    FOREIGN KEY (corp_code) REFERENCES COMPANY(corp_code)
+    FOREIGN KEY (corp_code) REFERENCES clean_stock(corp_code)
   )
 ")
 
