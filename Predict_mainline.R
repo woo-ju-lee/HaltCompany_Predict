@@ -5,7 +5,7 @@ library(xml2)
 library(readr)
 library(httr)
 library(jsonlite)
-library(readxl)
+library(openxlsx)
 
 ###함수 생성
 
@@ -98,3 +98,18 @@ stock_info <- stock_info %>% select(
   corp_cls, jurir_no, bizr_no, 
   induty_code, est_dt, acc_mt
 )
+
+con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
+
+k_std <- read.xlsx("~/HaltCompany_Predict/data/k_std_sort.xlsx", 
+          sheet = 2,
+          startRow = 3,
+          colNames = FALSE,
+          skipEmptyRows = FALSE,
+          skipEmptyCols = FALSE,
+          fillMergedCells = TRUE
+)
+
+k_std_sort <- k_std[complete.cases(k_std[, 6]), 1:6]
+
+colnames(k_std_sort) <- c("major_category_code", "major_category", "medium_category_code", "medium_category", "minor_category_code", "minor_category")

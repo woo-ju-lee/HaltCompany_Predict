@@ -35,3 +35,17 @@ dbExecute(con, "
 ")
 
 dbWriteTable(con, "STOCK_INFO", stock_info, append = TRUE)
+
+dbExecute(con, "
+          CREATE TABLE K_STD_SORT (
+          major_category_code TEXT, 
+          major_category TEXT, 
+          medium_category_code TEXT, 
+          medium_category TEXT, 
+          minor_category_code TEXT, 
+          minor_category TEXT,
+          FOREIGN KEY (minor_category_code) REFERENCES STOCK_INFO(induty_code)
+          )
+        ")
+
+dbWriteTable(con, "K_STD_SORT", k_std_sort, append = TRUE)
