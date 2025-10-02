@@ -42,8 +42,9 @@ dbExecute(con, "
           major_category TEXT, 
           medium_category_code TEXT, 
           medium_category TEXT, 
-          minor_category_code TEXT, 
-          minor_category TEXT,
+          minor_category_code TEXT NOT NULL, 
+          minor_category TEXT NOT NULL,
+          PRIMARY KEY (minor_category_code),
           FOREIGN KEY (minor_category_code) REFERENCES STOCK_INFO(induty_code)
           )
         ")
