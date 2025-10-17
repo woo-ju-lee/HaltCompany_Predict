@@ -71,6 +71,36 @@ class_transf <- function(data_df) {
   return(data_df)
 }
 
+##회사 상태 불러오기 (주식시장 확인용)
+
+company_status <- function(code) {
+  url = "https://opendart.fss.or.kr/api/company.json?crtfc_key="
+  crtfc_key = Sys.getenv("DART_FSS")
+  corp_code = code
+  
+  res = read_json(paste0(url, crtfc_key, "&corp_code=", corp_code))
+  
+  res = bind_rows(res)
+  
+  return(res)
+}
+
+##회사 재무지표 불러오기
+
+company_fnltt <- function(code, year) {
+  url = "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json?crtfc_key="
+  crtfc_key = Sys.getenv("DART_FSS")
+  corp_code = code
+  years = year
+  report_code = "11011"
+  
+  res = read_json(paste0(url, crtfc_key, "&corp_code=", code, "&bsns_year=", years, "&reprt_code=", report_code))
+  
+  res = bind_rows(res$list)
+  
+  return(res)
+}
+
 ###동작 라인
 
 corp_df <- corp_func()
@@ -147,7 +177,7 @@ dbExecute(con, "
 ")
 
 dbWriteTable(con, "STOCK_INFO", stock_info, append = TRUE)
-
+ 
 dbExecute(con, "
           CREATE TABLE K_STD_SORT (
           major_category_code TEXT, 
@@ -162,3 +192,15 @@ dbExecute(con, "
         ")
 
 dbWriteTable(con, "K_STD_SORT", k_std_sort, append = TRUE)
+
+### 메인 동작라인
+
+con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
+
+corp_code <- dbGetQuery(con, "SELECT corp_code FROM STOCK_INFO WHERE corp_cls != 'E'")$corp_code
+
+company_fnltt(corp_code[1], 2024)
+
+company_fn <- map(1:length(corp_code), function(i) {
+  company_fnltt(i, 2024)
+})
