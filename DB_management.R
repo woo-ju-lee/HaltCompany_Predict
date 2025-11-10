@@ -130,16 +130,14 @@ con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
 
 k_std <- read.xlsx("~/HaltCompany_Predict/data/k_std_sort.xlsx", 
                    sheet = 2,
-                   startRow = 3,
+                   startRow = 4,
                    colNames = FALSE,
                    skipEmptyRows = FALSE,
                    skipEmptyCols = FALSE,
                    fillMergedCells = TRUE
 )
 
-k_std_sort <- k_std[complete.cases(k_std[, 6]), 1:6]
-
-colnames(k_std_sort) <- c("major_category_code", "major_category", "medium_category_code", "medium_category", "minor_category_code", "minor_category")
+colnames(k_std) <- c("major_category_code", "major_category", "middle_category_code", "middle_category", "minor_category_code", "minor_category", "fine_category_code", "fine_category", "micro_category_code", "micro_category")
 
 ###DB 생성 라인
 
@@ -177,21 +175,25 @@ dbExecute(con, "
 ")
 
 dbWriteTable(con, "STOCK_INFO", stock_info, append = TRUE)
- 
+
 dbExecute(con, "
           CREATE TABLE K_STD_SORT (
           major_category_code TEXT, 
           major_category TEXT, 
-          medium_category_code TEXT, 
-          medium_category TEXT, 
-          minor_category_code TEXT NOT NULL, 
-          minor_category TEXT NOT NULL,
-          PRIMARY KEY (minor_category_code),
+          middle_category_code TEXT, 
+          middle_category TEXT, 
+          minor_category_code TEXT, 
+          minor_category TEXT,
+          fine_category_code TEXT,
+          fine_category TEXT,
+          micro_category_code TEXT NOT NULL,
+          micro_category TEXT NOT NULL,
+          PRIMARY KEY (micro_category_code),
           FOREIGN KEY (minor_category_code) REFERENCES STOCK_INFO(induty_code)
           )
         ")
 
-dbWriteTable(con, "K_STD_SORT", k_std_sort, append = TRUE)
+dbWriteTable(con, "K_STD_SORT", k_std, append = TRUE)
 
 ### 메인 동작라인
 
@@ -202,5 +204,15 @@ corp_code <- dbGetQuery(con, "SELECT corp_code FROM STOCK_INFO WHERE corp_cls !=
 company_fnltt(corp_code[1], 2024)
 
 company_fn <- map(1:length(corp_code), function(i) {
-  company_fnltt(i, 2024)
+  company_fnltt(corp_code[i], 2024)
 })
+
+sort <- dbGetQuery(con, "SELECT * FROM K_STD_SORT")
+inducy_c <- dbGetQuery(con, "SELECT INDUTY_CODE FROM STOCK_INFO")
+
+inducy_c <- inducy_c %>%
+  mutate(
+    code3 = substr(induty_code, 1, 3),
+    code3 = ifelse(nchar(code3) == 2, paste0(code3, "1"), code3)
+  )
+
