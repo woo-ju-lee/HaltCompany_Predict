@@ -208,11 +208,21 @@ company_fn <- map(1:length(corp_code), function(i) {
 })
 
 sort <- dbGetQuery(con, "SELECT * FROM K_STD_SORT")
-inducy_c <- dbGetQuery(con, "SELECT INDUTY_CODE FROM STOCK_INFO")
+induty_code <- dbGetQuery(con, "SELECT induty_code FROM STOCK_INFO")
 
-inducy_c <- inducy_c %>%
-  mutate(
-    code3 = substr(induty_code, 1, 3),
-    code3 = ifelse(nchar(code3) == 2, paste0(code3, "1"), code3)
-  )
+#x1 <- map(1:nrow(induty_code), function(i) {
+#  ifelse(nchar(induty_code$induty_code[i]) == 5, subset(k_std, micro_category_code == induty_code$induty_code[i]#)$micro_category, 
+#         ifelse(nchar(induty_code$induty_code[i]) == 4, subset(k_std, fine_category_code == induty_code$induty_code[i])$fine_category, 
+#                ifelse(nchar(induty_code$induty_code[i]) == 3, subset(k_std, minor_category_code == induty_code$induty_code[i])$minor_category, 
+#                       ifelse(nchar(induty_code$induty_code[i]) == 2, subset(k_std, middle_category_code == induty_code$induty_code[i])$middle_category, 
+#                              0))))
+#})
 
+x2 <- dbGetQuery(con, "SELECT stock_name, stock_code
+FROM STOCK_INFO
+WHERE stock_name NOT LIKE '%스팩%'
+  AND stock_name NOT GLOB '*[0-9]*호*'
+  AND stock_name NOT LIKE '%리츠'
+  AND stock_name NOT LIKE '%투자회사%'
+  AND stock_name NOT LIKE '%인수목적%'
+  AND stock_name NOT LIKE '%펀드%';")
