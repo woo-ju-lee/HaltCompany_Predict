@@ -101,6 +101,24 @@ company_fnltt <- function(code, year) {
   return(res)
 }
 
+##KRX 회사 정보 불러오기
+
+krx_api <- function(market_name) {
+  main_url = "https://data-dbg.krx.co.kr/svc/apis/sto/"
+  sub_url <- switch(market_name,
+                    kospi  = "stk_isu_base_info.json",
+                    kosdaq = "ksq_isu_base_info.json",
+                    konex  = "knx_isu_base_info.json",
+                    stop("잘못된 시장 이름입니다. (kospi, kosdaq, konex 중 하나 입력)")
+  )
+  api = Sys.getenv("KRX")
+  date = format(Sys.Date() - 1, "%Y%m%d")
+  full_url <- paste0(main_url, sub_url, "?AUTH_KEY=", api, "&basDd=", date)
+  
+  fromJSON(full_url)$OutBlock_1
+}
+
+
 ###동작 라인
 
 corp_df <- corp_func()
@@ -139,6 +157,12 @@ k_std <- read.xlsx("~/HaltCompany_Predict/data/k_std_sort.xlsx",
 
 colnames(k_std) <- c("major_category_code", "major_category", "middle_category_code", "middle_category", "minor_category_code", "minor_category", "fine_category_code", "fine_category", "micro_category_code", "micro_category")
 
+krx_status <- rbind(
+  krx_api("kospi"),
+  krx_api("kosdaq"),
+  krx_api("konex")
+)
+
 ###DB 생성 라인
 
 con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
@@ -161,7 +185,7 @@ dbExecute(con, "
     corp_name     TEXT,
     corp_name_eng TEXT,
     stock_name    TEXT,
-    stock_code    TEXT,
+    stock_code    TEXT NOT NULL,
     ceo_nm        TEXT,
     corp_cls      TEXT,
     jurir_no      TEXT NOT NULL,
@@ -195,6 +219,27 @@ dbExecute(con, "
 
 dbWriteTable(con, "K_STD_SORT", k_std, append = TRUE)
 
+dbExecute(con, "
+          CREATE TABLE KRX_STATUS (
+          ISU_CD TEXT NOT NULL,
+          ISU_SRT_CD TEXT NOT NULL,
+          ISU_NM TEXT,
+          ISU_ABBRV TEXT,
+          ISU_ENG_NM TEXT,
+          LIST_DD TEXT,
+          MKT_TP_NM TEXT,
+          SECUGRP_NM TEXT,
+          SECT_TP_NM TEXT,
+          KIND_STKCERT_TP_NM TEXT,
+          PARVAL TEXT,
+          LIST_SHRS TEXT,
+          PRIMARY KEY (ISU_CD),
+          FOREIGN KEY (ISU_SRT_CD) REFERENCES STOCK_INFO(stock_code)
+          )
+        ")
+
+dbWriteTable(con, "KRX_STATUS", krx_status, append = TRUE)
+
 ### 메인 동작라인
 
 con <- dbConnect(SQLite(), "~/HaltCompany_Predict/data/SQLiteDB.sqlite")
@@ -226,3 +271,13 @@ WHERE stock_name NOT LIKE '%스팩%'
   AND stock_name NOT LIKE '%투자회사%'
   AND stock_name NOT LIKE '%인수목적%'
   AND stock_name NOT LIKE '%펀드%';")
+
+x3 <- dbGetQuery(con, "
+           SELECT *
+           FROM STOCK_INFO A
+           JOIN KRX_STATUS B
+           ON A.stock_code = B.ISU_SRT_CD
+           WHERE B.SECUGRP_NM = '주권' 
+           AND B.KIND_STKCERT_TP_NM = '보통주' 
+           AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
+           ")
