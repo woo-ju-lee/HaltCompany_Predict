@@ -281,3 +281,17 @@ x3 <- dbGetQuery(con, "
            AND B.KIND_STKCERT_TP_NM = '보통주' 
            AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
            ")
+
+x4 <- dbGetQuery(con, "
+           SELECT A.corp_code
+           FROM STOCK_INFO A
+           JOIN KRX_STATUS B
+           ON A.stock_code = B.ISU_SRT_CD
+           WHERE B.SECUGRP_NM = '주권' 
+           AND B.KIND_STKCERT_TP_NM = '보통주' 
+           AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
+           ")
+
+x5 <- fromJSON(paste0("https://opendart.fss.or.kr/api/fnlttMultiAcnt.json?crtfc_key=", Sys.getenv("DART_FSS"), "&corp_code=", paste(head(x4$corp_code, n = 100), collapse = ","), "&bsns_year=2018&reprt_code=11011"))$list
+
+#map 함수로 2015년 부터 2025년 까지의 재무정보 불러오기 + db에 저장 필요
