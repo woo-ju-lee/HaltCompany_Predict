@@ -118,6 +118,24 @@ krx_api <- function(market_name) {
   fromJSON(full_url)$OutBlock_1
 }
 
+##DART에서 재무 정보 불러오기
+
+dart_finance <- function(bsns_year, reprt_code, data_name) {
+  main_url = "https://opendart.fss.or.kr/api/fnlttMultiAcnt.json?crtfc_key="
+  api = Sys.getenv("DART_FSS")
+  
+  corp_cd = data_name$corp_code
+  
+  chunck = c(seq(0, length(corp_cd), by = 100), length(corp_cd))
+  
+  res = map(2:length(chunck), function(i) {
+    full_url = paste0(main_url, api, "&corp_code=", paste(corp_cd[(chunck[i-1] + 1):chunck[i]], collapse = ","), "&bsns_year=", bsns_year, "&reprt_code=", reprt_code)
+    
+    fromJSON(full_url)$list
+  })
+  
+  fin_res = bind_rows(res)
+}
 
 ###동작 라인
 
@@ -292,6 +310,9 @@ x4 <- dbGetQuery(con, "
            AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
            ")
 
-x5 <- fromJSON(paste0("https://opendart.fss.or.kr/api/fnlttMultiAcnt.json?crtfc_key=", Sys.getenv("DART_FSS"), "&corp_code=", paste(head(x4$corp_code, n = 100), collapse = ","), "&bsns_year=2018&reprt_code=11011"))$list
+##2015~2025 재무 정보 다운로드 코드 45만건 * 21피처
+##DB에 추가 필요, 정규화도 고민 필요
 
-#map 함수로 2015년 부터 2025년 까지의 재무정보 불러오기 + db에 저장 필요
+x5 <- map(2015:2025, function(i) {
+  dart_finance(i, 11011, x4)
+  }) %>% bind_rows()
