@@ -9,6 +9,7 @@ library(jsonlite)
 library(openxlsx)
 library(DBI)
 library(RSQLite)
+library(data.table)
 
 ###DB용 데이터 정제
 
@@ -313,15 +314,61 @@ x4 <- dbGetQuery(con, "
 ##2015~2025 재무 정보 다운로드 코드 45만건 * 21피처
 ##DB에 추가 필요, 정규화도 고민 필요
 
-x5 <- map(2015:2025, function(i) {
+x5 <- map(2015:2026, function(i) {
   dart_finance(i, 11011, x4)
   }) %>% bind_rows()
 
 write_csv(x5, "finance.csv")
 
-colnames(x5)
+x5 <- fread("finance.csv")
 
 x6 <- x5 %>% group_split(corp_code)
+
+#system.time(split(x5, x5$corp_code))
+
+#아래의 코드는 corpType에서 Length 문제가 발생하여 수정 필요
+halt_company_list <- function(bgn_de, end_de) {
+  
+  url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+  
+  payload <- list(
+    pageIndex = 1,
+    pageSize = 10,
+    pageUnit = 10,
+    recordCountPerPage = 15,
+    sortStdr = "crp",
+    sortOrdr = "asc",
+    sumSortStdr = "",
+    sumSortOrdr = "asc",
+    textCrpCik = "",
+    bgnDe = bgn_de,
+    endDe = end_de,
+    textCrpNm = "",
+    startDate = bgn_de,
+    endDate = end_de,
+    corpTypeAll = 1,
+    reportCode = "11303"
+  )
+  
+  res <- POST(
+    url,
+    body = payload,
+    encode = "form",
+    query = list(corpType = c("P","A","N","E")),
+    add_headers(
+      "User-Agent" = "Mozilla/5.0",
+      "Referer" = "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+    )
+  )
+  
+  html_txt <- content(res, "text", encoding = "UTF-8")
+  
+  doc <- read_html(html_txt)
+  
+  doc_table <- html_table(doc, header = TRUE)[[1]][-1,]
+  
+  return(doc_table)
+}
 
 ##정규화 할 때  연도 기준? 회사 기준?
 ##연결재무제표도 재무제표와 어떤식으로 분리할지 기준이 필요함
