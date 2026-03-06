@@ -138,6 +138,110 @@ dart_finance <- function(bsns_year, reprt_code, data_name) {
   fin_res = bind_rows(res)
 }
 
+
+#dart 전체 재무 정보
+dart_finance_state <- function(corp_code, bsns_yaer, reprt_code, fs_div) {
+  
+  main_url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key="
+  
+  api = Sys.getenv("DART_FSS")
+  
+  comp_name = corp_code$corp_code
+  
+  res = map(1:length(comp_name), function(i) {
+    
+    full_url = paste0(main_url, api, "&corp_code=", comp_name[i], "&bsns_year=", bsns_yaer, "&reprt_code=", reprt_code, "&fs_div=", fs_div)
+    
+    fromJSON(full_url)$list
+  })
+  
+  fin_res = bind_rows(res)
+}
+
+#dart 기준 영업정지 기업 목록
+
+halt_company_list <- function(bgn_de, end_de) {
+  
+  url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+  
+  base_payload <- list(
+    pageIndex = 2,
+    pageSize = 10,
+    pageUnit = 10,
+    recordCountPerPage = 100,
+    sortStdr = "crp",
+    sortOrdr = "asc",
+    sumSortStdr = "",
+    sumSortOrdr = "asc",
+    textCrpCik = "",
+    bgnDe = bgn_de,
+    endDe = end_de,
+    textCrpNm = "",
+    startDate = bgn_de,
+    endDate = end_de,
+    corpTypeAll = 1,
+    reportCode = "11303"
+  )
+  
+  corp_types <- setNames(
+    as.list(c("P", "A", "N", "E")),
+    rep("corpType", 4)
+  )
+  
+  payload <- c(base_payload, corp_types)
+  
+  res <- POST(
+    url,
+    body = payload,
+    encode = "form",
+    add_headers(
+      "User-Agent" = "Mozilla/5.0",
+      "Referer" = "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+    )
+  )
+  
+  html_txt <- content(res, "text", encoding = "UTF-8")
+  doc <- read_html(html_txt)
+  doc_table <- html_table(doc, header = TRUE)[[1]][-1, ]
+  
+  return(doc_table)
+}
+
+#XBRL 요소 이름들
+status_list <- function() {
+  
+  url = "https://opendart.fss.or.kr/api/xbrlTaxonomy.json?crtfc_key="
+  api = Sys.getenv("DART_FSS")
+  sj_div = c("BS1", "BS3", "IS1" ,"IS3", "CIS1", "CIS3", "DCIS1", "DCIS3", "DCIS5", "DCIS7", "CF1", "CF3", "SCE1")
+  
+  div = map(1:length(sj_div), function(i) {
+    main_url = paste0(url, api, "&sj_div=", sj_div[i])
+  }) %>% unlist()
+  
+  res = map(1:length(div), function(i) {
+    fromJSON(div[i])$list
+  })
+  
+  fin_res = bind_rows(res)
+}
+
+status_list_single <- function() {
+  
+  url = "https://opendart.fss.or.kr/api/xbrlTaxonomy.json?crtfc_key="
+  api = Sys.getenv("DART_FSS")
+  sj_div = c("BS2", "BS4", "IS2" ,"IS4", "CIS2", "CIS4", "DCIS2", "DCIS4", "DCIS6", "DCIS8", "CF2", "CF4", "SCE2")
+  
+  div = map(1:length(sj_div), function(i) {
+    main_url = paste0(url, api, "&sj_div=", sj_div[i])
+  }) %>% unlist()
+  
+  res = map(1:length(div), function(i) {
+    fromJSON(div[i])$list
+  })
+  
+  fin_res = bind_rows(res)
+}
+
 ###동작 라인
 
 corp_df <- corp_func()
@@ -316,7 +420,7 @@ x4 <- dbGetQuery(con, "
 
 x5 <- map(2015:2026, function(i) {
   dart_finance(i, 11011, x4)
-  }) %>% bind_rows()
+}) %>% bind_rows()
 
 write_csv(x5, "finance.csv")
 
@@ -326,49 +430,31 @@ x6 <- x5 %>% group_split(corp_code)
 
 #system.time(split(x5, x5$corp_code))
 
-#아래의 코드는 corpType에서 Length 문제가 발생하여 수정 필요
-halt_company_list <- function(bgn_de, end_de) {
-  
-  url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
-  
-  payload <- list(
-    pageIndex = 1,
-    pageSize = 10,
-    pageUnit = 10,
-    recordCountPerPage = 15,
-    sortStdr = "crp",
-    sortOrdr = "asc",
-    sumSortStdr = "",
-    sumSortOrdr = "asc",
-    textCrpCik = "",
-    bgnDe = bgn_de,
-    endDe = end_de,
-    textCrpNm = "",
-    startDate = bgn_de,
-    endDate = end_de,
-    corpTypeAll = 1,
-    reportCode = "11303"
-  )
-  
-  res <- POST(
-    url,
-    body = payload,
-    encode = "form",
-    query = list(corpType = c("P","A","N","E")),
-    add_headers(
-      "User-Agent" = "Mozilla/5.0",
-      "Referer" = "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
-    )
-  )
-  
-  html_txt <- content(res, "text", encoding = "UTF-8")
-  
-  doc <- read_html(html_txt)
-  
-  doc_table <- html_table(doc, header = TRUE)[[1]][-1,]
-  
-  return(doc_table)
-}
-
 ##정규화 할 때  연도 기준? 회사 기준?
 ##연결재무제표도 재무제표와 어떤식으로 분리할지 기준이 필요함
+
+company_status_total <- map(2020:2025, function(i) {
+  dart_finance_state(x4, i, 11011, "CFS")
+})
+
+company_status_total2 <- map(2015:2019, function(i) {
+  dart_finance_state(x4, i, 11011, "CFS")
+})
+
+x10 <- data.frame(corp_code = x4$corp_code[which(x4$corp_code %in% unique(x9$corp_code) == FALSE)])
+
+company_status_single_total <- map(2015:2025, function(i) {
+  dart_finance_state(x10, i, 11011, "OFS")
+})
+
+saveRDS(company_status_total, "company_status_total.rds")
+saveRDS(company_status_total2, "company_status_total2.rds")
+saveRDS(company_status_single_total, "company_status_single_total.rds")
+
+company <- readRDS("company_status_total.rds")
+company2 <- readRDS("company_status_total2.rds")
+company3 <- readRDS("company_status_single_total.rds")
+
+x9 <- c(company2, company, company3) %>% bind_rows() %>% setorder(bsns_year)
+
+##XBRL 요소중에 ifrs-full_을 갖고 있는 애들이 있음. 없애야 함.
