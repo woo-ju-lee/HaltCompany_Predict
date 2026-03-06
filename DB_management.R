@@ -137,6 +137,27 @@ dart_finance <- function(bsns_year, reprt_code, data_name) {
   
   fin_res = bind_rows(res)
 }
+  
+dart_finance_state <- function(corp_code, bsns_yaer, reprt_code, fs_div) {
+  
+  main_url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key="
+  
+  api = Sys.getenv("DART_FSS")
+  
+  comp_name = corp_code$corp_code
+  
+  res = map(1:length(comp_name), function(i) {
+    
+    full_url = paste0(main_url, api, "&corp_code=", comp_name[i], "&bsns_year=", bsns_yaer, "&reprt_code=", reprt_code, "&fs_div=", fs_div)
+    
+    fromJSON(full_url)$list
+  })
+  
+  fin_res = bind_rows(res)
+}
+
+ex3 <- dart_finance_state(x4, 2015, 11011, "CFS")
+
 
 ###동작 라인
 
@@ -369,6 +390,8 @@ halt_company_list <- function(bgn_de, end_de) {
   
   return(doc_table)
 }
+
+ex3 <- halt_company_list("20240101", "20251231")
 
 ##정규화 할 때  연도 기준? 회사 기준?
 ##연결재무제표도 재무제표와 어떤식으로 분리할지 기준이 필요함
