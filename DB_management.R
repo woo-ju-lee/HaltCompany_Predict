@@ -137,7 +137,9 @@ dart_finance <- function(bsns_year, reprt_code, data_name) {
   
   fin_res = bind_rows(res)
 }
-  
+
+
+#dart 전체 재무 정보
 dart_finance_state <- function(corp_code, bsns_yaer, reprt_code, fs_div) {
   
   main_url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key="
@@ -156,7 +158,54 @@ dart_finance_state <- function(corp_code, bsns_yaer, reprt_code, fs_div) {
   fin_res = bind_rows(res)
 }
 
-ex3 <- dart_finance_state(x4, 2015, 11011, "CFS")
+#dart 기준 영업정지 기업 목록
+
+halt_company_list <- function(bgn_de, end_de) {
+  
+  url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+  
+  base_payload <- list(
+    pageIndex = 2,
+    pageSize = 10,
+    pageUnit = 10,
+    recordCountPerPage = 100,
+    sortStdr = "crp",
+    sortOrdr = "asc",
+    sumSortStdr = "",
+    sumSortOrdr = "asc",
+    textCrpCik = "",
+    bgnDe = bgn_de,
+    endDe = end_de,
+    textCrpNm = "",
+    startDate = bgn_de,
+    endDate = end_de,
+    corpTypeAll = 1,
+    reportCode = "11303"
+  )
+  
+  corp_types <- setNames(
+    as.list(c("P", "A", "N", "E")),
+    rep("corpType", 4)
+  )
+  
+  payload <- c(base_payload, corp_types)
+  
+  res <- POST(
+    url,
+    body = payload,
+    encode = "form",
+    add_headers(
+      "User-Agent" = "Mozilla/5.0",
+      "Referer" = "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
+    )
+  )
+  
+  html_txt <- content(res, "text", encoding = "UTF-8")
+  doc <- read_html(html_txt)
+  doc_table <- html_table(doc, header = TRUE)[[1]][-1, ]
+  
+  return(doc_table)
+}
 
 
 ###동작 라인
@@ -347,51 +396,11 @@ x6 <- x5 %>% group_split(corp_code)
 
 #system.time(split(x5, x5$corp_code))
 
-#아래의 코드는 corpType에서 Length 문제가 발생하여 수정 필요
-halt_company_list <- function(bgn_de, end_de) {
-  
-  url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
-  
-  payload <- list(
-    pageIndex = 1,
-    pageSize = 10,
-    pageUnit = 10,
-    recordCountPerPage = 15,
-    sortStdr = "crp",
-    sortOrdr = "asc",
-    sumSortStdr = "",
-    sumSortOrdr = "asc",
-    textCrpCik = "",
-    bgnDe = bgn_de,
-    endDe = end_de,
-    textCrpNm = "",
-    startDate = bgn_de,
-    endDate = end_de,
-    corpTypeAll = 1,
-    reportCode = "11303"
-  )
-  
-  res <- POST(
-    url,
-    body = payload,
-    encode = "form",
-    query = list(corpType = c("P","A","N","E")),
-    add_headers(
-      "User-Agent" = "Mozilla/5.0",
-      "Referer" = "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
-    )
-  )
-  
-  html_txt <- content(res, "text", encoding = "UTF-8")
-  
-  doc <- read_html(html_txt)
-  
-  doc_table <- html_table(doc, header = TRUE)[[1]][-1,]
-  
-  return(doc_table)
-}
-
-ex3 <- halt_company_list("20240101", "20251231")
-
 ##정규화 할 때  연도 기준? 회사 기준?
 ##연결재무제표도 재무제표와 어떤식으로 분리할지 기준이 필요함
+
+company_status_total <- map(2020:2025, function(i) {
+  dart_finance_state(x4, i, 11011, "CFS")
+})
+
+saveRDS(company_status_total, "company_status_total.rds")
