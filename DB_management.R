@@ -207,6 +207,23 @@ halt_company_list <- function(bgn_de, end_de) {
   return(doc_table)
 }
 
+#XBRL 요소 이름들
+status_list <- function() {
+  
+  url = "https://opendart.fss.or.kr/api/xbrlTaxonomy.json?crtfc_key="
+  api = Sys.getenv("DART_FSS")
+  sj_div = c("BS1", "BS3", "IS1" ,"IS3", "CIS1", "CIS3", "DCIS1", "DCIS3", "DCIS5", "DCIS7", "CF1", "CF3", "SCE1")
+  
+  div = map(1:length(sj_div), function(i) {
+    main_url = paste0(url, api, "&sj_div=", sj_div[i])
+  }) %>% unlist()
+  
+  res = map(1:length(div), function(i) {
+    fromJSON(div[i])$list
+  })
+  
+  fin_res = bind_rows(res)
+}
 
 ###동작 라인
 
@@ -403,4 +420,16 @@ company_status_total <- map(2020:2025, function(i) {
   dart_finance_state(x4, i, 11011, "CFS")
 })
 
+company_status_total2 <- map(2015:2019, function(i) {
+  dart_finance_state(x4, i, 11011, "CFS")
+})
+
 saveRDS(company_status_total, "company_status_total.rds")
+saveRDS(company_status_total2, "company_status_total2.rds")
+
+company <- readRDS("company_status_total.rds")
+company2 <- read_rds("company_status_total2.rds")
+
+x9 <- c(company2, company) %>% bind_rows()
+
+##XBRL 요소중에 ifrs-full_을 갖고 있는 애들이 있음. 없애야 함.
