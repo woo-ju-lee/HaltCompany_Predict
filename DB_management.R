@@ -447,14 +447,55 @@ company_status_single_total <- map(2015:2025, function(i) {
   dart_finance_state(x10, i, 11011, "OFS")
 })
 
-saveRDS(company_status_total, "company_status_total.rds")
-saveRDS(company_status_total2, "company_status_total2.rds")
-saveRDS(company_status_single_total, "company_status_single_total.rds")
+#saveRDS(company_status_total, "company_status_total.rds")
+#saveRDS(company_status_total2, "company_status_total2.rds")
+#saveRDS(company_status_single_total, "company_status_single_total.rds")
 
 company <- readRDS("company_status_total.rds")
 company2 <- readRDS("company_status_total2.rds")
 company3 <- readRDS("company_status_single_total.rds")
 
-x9 <- c(company2, company, company3) %>% bind_rows() %>% setorder(bsns_year)
+x9 <- bind_rows(c(company, company2, company3)) %>% arrange(bsns_year)
+
+x9 <- x9[,-c(18:21)]
+
+#saveRDS(x9, "cp_total.rds")
+
+company <- readRDS("cp_total.rds")
+
+company <- company %>% mutate(across(c(1, 2, 3, 11, 13, 15, 16), as.numeric))
+
+company_short <- company %>% 
+  distinct(corp_code, bsns_year) %>% 
+  group_by(corp_code) %>% 
+  summarise(
+    n_year = n(),
+    all_year_exist = setequal(bsns_year, 2015:2024),
+    .groups = "drop"
+  ) %>% 
+  filter(n_year == length(2015:2024), all_year_exist) %>% 
+  pull(corp_code)
+
+company_short <- company %>% 
+  filter(corp_code %in% company_short)
+
+x1 <- company_short %>% 
+  group_by(corp_code) %>% 
+  filter(!any(account_id == "-표준계정코드 미사용-")) %>% 
+  ungroup()
+
+company_short %>% select(account_nm, thstrm_amount) %>% filter(str_detect(account_nm, "자본"))
+company_short %>% select(account_nm, thstrm_amount) %>% filter(account_nm == "자본총계")
+
+
+###표준계정코드 미사용이 있는 기업들 제외하니 1개 기업만 남음 해당 문제 해결해야할 듯. 먼저 각 재무지표 수익성, 위험성 등 어떤 재무정보가 들어가는 지 확인한 후 해당 정보부터 추출하여 사용하는 것이 좋아보임. 현재는 1100개 기업정도.
 
 ##XBRL 요소중에 ifrs-full_을 갖고 있는 애들이 있음. 없애야 함.
+
+
+company_BS <- company_short %>% filter(sj_nm == "재무상태표")
+
+company_BS <- company_BS %>% 
+  mutate(account_nm = gsub("[^가-힣]", "", account_nm))
+
+x2 <- company_BS %>% select(account_nm, thstrm_amount, account_id) %>% filter(str_detect(account_nm, "자본")) %>% select(account_id, account_nm) %>% unique()
