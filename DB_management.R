@@ -119,7 +119,7 @@ krx_api <- function(market_name) {
   fromJSON(full_url)$OutBlock_1
 }
 
-##DART에서 재무 정보 불러오기
+##다중회사 주요계정
 
 dart_finance <- function(bsns_year, reprt_code, data_name) {
   main_url = "https://opendart.fss.or.kr/api/fnlttMultiAcnt.json?crtfc_key="
@@ -208,6 +208,7 @@ halt_company_list <- function(bgn_de, end_de) {
 }
 
 #XBRL 요소 이름들
+
 status_list <- function() {
   
   url = "https://opendart.fss.or.kr/api/xbrlTaxonomy.json?crtfc_key="
@@ -240,6 +241,30 @@ status_list_single <- function() {
   })
   
   fin_res = bind_rows(res)
+}
+
+#다중회사 주요재무지표
+
+status_list_multi <- function(corp_code, year) {
+  url = "https://opendart.fss.or.kr/api/fnlttCmpnyIndx.json?crtfc_key="
+  api = Sys.getenv("DART_FSS")
+  code = corp_code$corp_code
+  idx = c("M210000", "M220000", "M230000", "M240000")
+  
+  chunck = c(seq(0, length(code), by = 100), length(code))
+  
+  res = map(1:length(idx), function(j) {
+    sub_res = map(2:length(chunck), function(i) {
+      main_url = paste0(url, api, "&corp_code=", paste(code[(chunck[i-1] + 1):chunck[i]], collapse = ","), "&bsns_year=", year, "&reprt_code=11011", "&idx_cl_code=", idx[j])
+      
+      fromJSON(main_url)$list
+    })
+    
+    bind_rows(sub_res)
+  })
+  
+  fin_res = bind_rows(res)
+  return(fin_res)
 }
 
 ###동작 라인
@@ -499,3 +524,8 @@ company_BS <- company_BS %>%
   mutate(account_nm = gsub("[^가-힣]", "", account_nm))
 
 x2 <- company_BS %>% select(account_nm, thstrm_amount, account_id) %>% filter(str_detect(account_nm, "자본")) %>% select(account_id, account_nm) %>% unique()
+
+x3 <- dart_finance(2015, 11011, x4)
+x5 <- status_list_multi(x4, 2023)
+x6 <- company_short %>% filter(corp_code == "00101220" & bsns_year == 2023) 
+x7 <- x5 %>% filter(idx_cl_code == "M220000" & corp_code == "00101220")
