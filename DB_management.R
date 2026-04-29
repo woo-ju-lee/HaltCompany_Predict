@@ -529,3 +529,56 @@ x3 <- dart_finance(2015, 11011, x4)
 x5 <- status_list_multi(x4, 2023)
 x6 <- company_short %>% filter(corp_code == "00101220" & bsns_year == 2023) 
 x7 <- x5 %>% filter(idx_cl_code == "M220000" & corp_code == "00101220")
+
+###
+primary_acnt <- map(2015:2025, function(i) {
+  dart_finance(i, 11011, x4)
+})
+
+primary_acnt <- primary_acnt %>% bind_rows()
+
+primary_acnt <- readRDS("primary_acnt.rds")
+
+primary_acnt_clean <- primary_acnt %>% 
+  group_by(corp_code) %>% 
+  filter(n_distinct(bsns_year) == 11) %>% 
+  ungroup()
+
+primary_acnt_clean %>% select(account_nm) %>% unique() %>% print(n = 30)
+
+primary_acnt_clean <- primary_acnt_clean %>% 
+  mutate(account_nm = case_when(
+    account_nm %in% c("영업이익", "영업이익(손실)") ~ "영업이익",
+                      TRUE ~ account_nm
+  ))
+
+primary_acnt_clean %>% select(account_nm) %>% table()
+
+primary <- primary_acnt_clean %>%
+  mutate(
+    account_nm = str_trim(account_nm),
+    amount = as.numeric(gsub(",", "", thstrm_amount))
+  ) %>%
+  filter(account_nm %in% c("자본금", "자본총계")) %>%
+  group_by(corp_code, stock_code, bsns_year, account_nm) %>%
+  summarise(
+    amount = sum(amount, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = account_nm,
+    values_from = amount
+  ) %>%
+  mutate(
+    자본잠식비율 = case_when(
+      is.na(`자본금`) | is.na(`자본총계`) ~ NA_real_,
+      `자본금` == 0 ~ NA_real_,
+      TRUE ~ (`자본금` - `자본총계`) / `자본금`
+    ),
+    자본잠식비율_pct = 자본잠식비율 * 100
+  )
+
+primary$corp_code %>% unique()
+
+###범용
+primary <- primary_acnt_clean %>% pivot_wider(names_from = account_nm, values_from = thstrm_amount)
