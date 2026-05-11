@@ -580,5 +580,110 @@ primary <- primary_acnt_clean %>%
 
 primary$corp_code %>% unique()
 
-###범용
-primary <- primary_acnt_clean %>% pivot_wider(names_from = account_nm, values_from = thstrm_amount)
+###############
+vars <- primary_acnt_clean$account_nm %>% unique()
+
+to_num <- function(x) {
+  parse_number(
+    x,
+    na = c("", "NA", "-")
+  )
+}
+
+first_non_na <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) NA_real_ else x[1]
+}
+
+primary <- primary_acnt_clean %>%
+  mutate(
+    account_nm = str_squish(account_nm),
+    amount = to_num(thstrm_amount)
+  ) %>%
+  filter(account_nm %in% vars) %>%
+  select(corp_code, stock_code, bsns_year, account_nm, amount) %>%
+  group_by(corp_code, stock_code, bsns_year, account_nm) %>%
+  summarise(
+    amount = first_non_na(amount),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    id_cols = c(corp_code, stock_code, bsns_year),
+    names_from = account_nm,
+    values_from = amount
+  )
+
+primary_ratio <- primary %>%
+  mutate(
+    자본잠식률 = (`자본금` - `자본총계`) / `자본금`,
+    자본잠식비율 = 자본잠식률,
+    
+    자본전액잠식_dummy = case_when(
+      is.na(`자본총계`) ~ NA_real_,
+      `자본총계` <= 0 ~ 1,
+      TRUE ~ 0
+    ),
+
+    법인세차감전순이익_자본총계 = `법인세차감전 순이익` / `자본총계`,
+    ROA = `당기순이익(손실)` / `자산총계`,
+    ROE = `당기순이익(손실)` / `자본총계`,
+    영업이익_자산총계 = `영업이익` / `자산총계`,
+    영업이익률 = `영업이익` / `매출액`,
+    순이익률 = `당기순이익(손실)` / `매출액`,
+    
+    운전자본 = `유동자산` - `유동부채`,
+    운전자본_자산총계 = 운전자본 / `자산총계`,
+    이익잉여금_자산총계 = `이익잉여금` / `자산총계`,
+    부채총계_자산총계 = `부채총계` / `자산총계`,
+    차입부채_자산총계 = `차입부채` / `자산총계`,
+    금융부채_자산총계 = `금융부채` / `자산총계`,
+    부채비율 = `부채총계` / `자본총계`,
+    
+    유동비율 = `유동자산` / `유동부채`,
+    
+    이자보상배율 = `영업이익` / `이자비용`,
+    
+    총자산회전율 = `매출액` / `자산총계`,
+    
+    log_자산총계 = log(`자산총계`),
+    log_매출액 = log(`매출액`)
+  )
+
+ratio_vars <- c(
+  "자본잠식률",
+  "자본전액잠식_dummy",
+  "법인세차감전순이익_자본총계",
+  "ROA",
+  "ROE",
+  "영업이익_자산총계",
+  "영업이익률",
+  "순이익률",
+  "운전자본_자산총계",
+  "이익잉여금_자산총계",
+  "부채총계_자산총계",
+  "차입부채_자산총계",
+  "금융부채_자산총계",
+  "부채비율",
+  "유동비율",
+  "이자보상배율",
+  "총자산회전율",
+  "log_자산총계",
+  "log_매출액"
+)
+
+primary_ratio <- primary_ratio %>%
+  arrange(corp_code, bsns_year) %>%
+  group_by(corp_code) %>%
+  fill(
+    all_of(ratio_vars),
+    .direction = "down"
+  ) %>%
+  ungroup()
+
+primary_ratio_only <- primary_ratio %>%
+  select(corp_code, bsns_year, ratio_vars)
+
+apply(primary_ratio_only, 2, function(x) sum(is.na(x)))
+
+primary_ratio_only <- primary_ratio_only %>% 
+  select(-c(차입부채_자산총계, 금융부채_자산총계, 이자보상배율))

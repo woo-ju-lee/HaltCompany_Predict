@@ -9,6 +9,7 @@ library(jsonlite)
 library(openxlsx)
 library(DBI)
 library(RSQLite)
+library(xgboost)
 
 ###함수 생성
 
