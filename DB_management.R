@@ -160,7 +160,7 @@ dart_finance_state <- function(corp_code, bsns_yaer, reprt_code, fs_div) {
 
 #dart 기준 영업정지 기업 목록
 
-halt_company_list <- function(bgn_de, end_de) {
+halt_company_list_dart <- function(bgn_de, end_de) {
   
   url <- "https://opendart.fss.or.kr/disclosureinfo/mainMatter/list.do"
   
@@ -205,6 +205,21 @@ halt_company_list <- function(bgn_de, end_de) {
   doc_table <- html_table(doc, header = TRUE)[[1]][-1, ]
   
   return(doc_table)
+}
+
+#KRX 기준 영업정지 기업 목록
+
+halt_company_list_krx <- function(typeidx) {
+  
+  url = paste0("https://kind.krx.co.kr/investwarn/tradinghaltissue.do?method=searchTradingHaltIssueSub&currentPageSize=200&pageIndex=1&searchMode=&searchCodeType=&searchCorpName=&forward=tradinghaltissue_sub&paxreq=&outsvcno=&marketType=", typeidx,"&repIsuSrtCd=#")
+  
+  html <- read_html(url, encoding = "UTF-8")
+  
+  company_names <- html %>%
+    html_elements("section.scrarea table tbody tr td:nth-child(2)") %>%
+    html_text(trim = TRUE)
+  
+  return(company_names)
 }
 
 #XBRL 요소 이름들

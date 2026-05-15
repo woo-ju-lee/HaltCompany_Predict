@@ -10,6 +10,7 @@ library(openxlsx)
 library(DBI)
 library(RSQLite)
 library(xgboost)
+library(glue)
 
 ###함수 생성
 
@@ -47,3 +48,17 @@ test <- primary_ratio_only %>%
     bsns_year <= 2024
   )
 
+halt_company_name <- map(1:2, function(i) {
+  halt_company_list_krx(i)
+}) %>% unlist()
+
+names <- dbGetQuery(con, glue_sql("
+           SELECT stock_name, corp_code, stock_code
+           FROM STOCK_INFO
+           WHERE stock_name IN ({halt_company_name*})
+           ", .con = con)
+           )
+
+halt_company_name %in% names$stock_name
+
+train_label <- d
