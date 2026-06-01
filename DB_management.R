@@ -704,3 +704,20 @@ apply(primary_ratio_only, 2, function(x) sum(is.na(x)))
 
 primary_ratio_only <- primary_ratio_only %>% 
   select(-c(차입부채_자산총계, 금융부채_자산총계, 이자보상배율))
+
+except_financial_sector <- dbGetQuery(con, "
+    SELECT DISTINCT
+           A.corp_code
+    FROM STOCK_INFO A
+    JOIN KRX_STATUS B
+      ON A.stock_code = B.ISU_SRT_CD
+    WHERE B.SECUGRP_NM = '주권'
+      AND B.KIND_STKCERT_TP_NM = '보통주'
+      AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
+      AND A.induty_code NOT LIKE '64%'
+      AND A.induty_code NOT LIKE '65%'
+      AND A.induty_code NOT LIKE '66%'
+")
+
+primary_ratio_only <- primary_ratio_only %>%
+  filter(corp_code %in% except_financial_sector$corp_code)
