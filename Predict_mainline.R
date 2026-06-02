@@ -73,42 +73,50 @@ train_halt <- ifelse(train$corp_code %in% names$corp_code == TRUE, 1, 0)
 valid_halt <- ifelse(valid$corp_code %in% names$corp_code == TRUE, 1, 0)
 test_halt <- ifelse(test$corp_code %in% names$corp_code == TRUE, 1, 0) %>% as.factor()
 
-pos <- sum(train_halt == 1)
-neg <- sum(train_halt == 0)
-
-stopifnot(pos > 0, neg > 0)
-
-scale_pos_weight_value <- neg / pos
-
 dtrain <- xgb.DMatrix(as.matrix(train %>% select(-corp_code)), label = train_halt, missing = NA)
 dvalid <- xgb.DMatrix(as.matrix(valid %>% select(-corp_code)), label = valid_halt, missing = NA)
 dtest <- xgb.DMatrix(as.matrix(test %>% select(-corp_code)), missing = NA)
 
-params <- xgb.params(
+params <- list(
   objective = "binary:logistic",
   eval_metric = "aucpr",
   max_depth = 3,
-  learning_rate = 0.5,
+  eta = 0.03,
   subsample = 0.8,
-  scale_pos_weight = scale_pos_weight_value,
   colsample_bytree = 0.8,
-  min_child_weight = 5,
+  min_child_weight = 10,
+  gamma = 1,
+  lambda = 5,
+  alpha = 0,
   max_delta_step = 1,
   nthread = 4
 )
 
-models <- xgb.train(
+model <- xgb.train(
   params = params,
   data = dtrain,
-  nrounds = 1000,
+  nrounds = 5000,
   evals = list(train = dtrain, valid = dvalid),
-  early_stopping_rounds = 50,
+  early_stopping_rounds = 200,
   verbose = 1
 )
 
-results <- predict(models, dtest)
+eval_log <- attr(model, "evaluation_log")
 
-results <- ifelse(results > 0.5, 1, 0) %>% as.factor()
+ggplot(eval_log, aes(x = iter)) +
+  geom_line(aes(y = train_aucpr, color = "Train"), size = 1) +
+  geom_line(aes(y = valid_aucpr, color = "Validation"), size = 1) +
+  labs(
+    title = "XGBoost Learning Curve (AUCPR)",
+    x = "Iterations (nrounds)",
+    y = "AUCPR Score",
+    color = "Dataset"
+  ) +
+  theme_minimal()
+
+result <- predict(model, dtest)
+
+results <- ifelse(result >= 0.02, 1, 0) %>% as.factor()
 
 confusionMatrix(results, test_halt,
                 positive = "1",

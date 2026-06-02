@@ -698,7 +698,7 @@ primary_ratio <- primary_ratio %>%
   ungroup()
 
 primary_ratio_only <- primary_ratio %>%
-  select(corp_code, bsns_year, ratio_vars)
+  select(corp_code, bsns_year, all_of(ratio_vars))
 
 apply(primary_ratio_only, 2, function(x) sum(is.na(x)))
 
@@ -721,3 +721,4 @@ except_financial_sector <- dbGetQuery(con, "
 
 primary_ratio_only <- primary_ratio_only %>%
   filter(corp_code %in% except_financial_sector$corp_code)
+
