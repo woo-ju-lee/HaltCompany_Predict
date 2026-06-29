@@ -98,7 +98,7 @@ params <- list(
   subsample = 0.8,
   colsample_bytree = 0.8,
   min_child_weight = 10,
-  gamma = 1,
+  gamma = 3,
   lambda = 5,
   alpha = 0,
   max_delta_step = 1,

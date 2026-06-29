@@ -219,7 +219,13 @@ halt_company_list_krx <- function(typeidx) {
     html_elements("section.scrarea table tbody tr td:nth-child(2)") %>%
     html_text(trim = TRUE)
   
-  return(company_names)
+  company_reason <- html %>% 
+    html_elements("section.scrarea table tbody tr td:nth-child(3)") %>%
+    html_text(trim = TRUE)
+  
+  halt_company <- data.frame(names = company_names, reasons = company_reason)
+  
+  return(halt_company %>% filter(reasons != "주식의 병합, 분할 등 전자등록 변경, 말소") %>% select(names))
 }
 
 #XBRL 요소 이름들
@@ -714,6 +720,7 @@ except_financial_sector <- dbGetQuery(con, "
     WHERE B.SECUGRP_NM = '주권'
       AND B.KIND_STKCERT_TP_NM = '보통주'
       AND B.SECT_TP_NM NOT LIKE '%소속부없음%'
+      AND B.MKT_TP_NM NOT LIKE 'KONEX'
       AND A.induty_code NOT LIKE '64%'
       AND A.induty_code NOT LIKE '65%'
       AND A.induty_code NOT LIKE '66%'
