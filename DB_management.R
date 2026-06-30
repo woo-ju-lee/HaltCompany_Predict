@@ -288,6 +288,17 @@ status_list_multi <- function(corp_code, year) {
   return(fin_res)
 }
 
+#최대주주 변경 내역
+
+table2 <- map(2015:2025, function(i) {
+  fromJSON(paste0(
+    "https://opendart.fss.or.kr/api/hyslrChgSttus.json?crtfc_key=",
+    Sys.getenv("DART_FSS"),
+    "&corp_code=", corp_code, "&bsns_year=", i, "&reprt_code=11011"
+  ))$list
+}) |> bind_rows()
+
+
 ###동작 라인
 
 corp_df <- corp_func()
