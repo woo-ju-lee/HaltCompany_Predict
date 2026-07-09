@@ -33,6 +33,12 @@ primary_ratio_only <- primary_ratio_only %>%
 
 primary_ratio_only <- primary_ratio_only |> select(-c(`자본잠식률`, `이익잉여금_자산총계`))
 
+nearZeroVar(primary_ratio_only, saveMetrics = TRUE)
+
+######
+#test#
+######
+
 set.seed(1004)
 
 firm_ids <- unique(primary_ratio_only$corp_code)
@@ -77,6 +83,23 @@ names <- dbGetQuery(con, glue_sql("
 
 halt_company_name %in% names$stock_name
 
+######
+#test#
+######
+
+primary_ratio_only <- primary_ratio_only |>
+  filter(
+    corp_code %in% names$corp_code |
+      corp_code %in% sample(
+        setdiff(unique(primary_ratio_only$corp_code), names$corp_code),
+        500
+      )
+  )
+
+######
+#test#
+######
+
 train_halt <- ifelse(train$corp_code %in% names$corp_code == TRUE, 1, 0)
 valid_halt <- ifelse(valid$corp_code %in% names$corp_code == TRUE, 1, 0)
 test_halt <- ifelse(test$corp_code %in% names$corp_code == TRUE, 1, 0) %>% as.factor()
@@ -118,15 +141,15 @@ params <- list(
   objective = "binary:logistic",
   eval_metric = "aucpr",
   max_depth = 3,
-  eta = 0.03,
-  subsample = 0.8,
+  eta = 0.02,
+  subsample = 0.6,
   colsample_bytree = 0.8,
   min_child_weight = 10,
-  gamma = 3,
-  lambda = 5,
-  alpha = 0,
+  gamma = 5,
+  lambda = 10,
+  alpha = 2,
   max_delta_step = 1,
-  nthread = 4
+  nthread = 6
 )
 
 model <- xgb.train(
