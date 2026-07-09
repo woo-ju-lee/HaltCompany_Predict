@@ -27,6 +27,11 @@ primary_ratio_only$bsns_year <- as.numeric(primary_ratio_only$bsns_year)
 primary_ratio_only <- primary_ratio_only %>%
   mutate(across(where(is.numeric), ~ replace(.x, is.infinite(.x), NA_real_)))
 
+######
+#test#
+######
+
+primary_ratio_only <- primary_ratio_only |> select(-c(`자본잠식률`, `이익잉여금_자산총계`))
 
 set.seed(1004)
 
@@ -34,7 +39,7 @@ firm_ids <- unique(primary_ratio_only$corp_code)
 
 train_firms <- sample(
   firm_ids,
-  size = floor(length(firm_ids) * 0.8)
+  size = floor(length(firm_ids) * 0.7)
 )
 
 test_firms <- setdiff(firm_ids, train_firms)
@@ -77,6 +82,25 @@ valid_halt <- ifelse(valid$corp_code %in% names$corp_code == TRUE, 1, 0)
 test_halt <- ifelse(test$corp_code %in% names$corp_code == TRUE, 1, 0) %>% as.factor()
 
 feature_cols <- setdiff(colnames(train), "corp_code")
+
+train <- train |> 
+  mutate(
+    `순손실_2년` = as.integer(`순손실_2년`),
+    `영업손실_2년` = as.integer(`영업손실_2년`)
+  )
+
+valid <- valid |> 
+  mutate(
+    `순손실_2년` = as.integer(`순손실_2년`),
+    `영업손실_2년` = as.integer(`영업손실_2년`)
+  )
+
+test <- test |> 
+  mutate(
+    `순손실_2년` = as.integer(`순손실_2년`),
+    `영업손실_2년` = as.integer(`영업손실_2년`)
+  )
+
 
 stopifnot(all(vapply(train[feature_cols], is.numeric, logical(1))))
 stopifnot(all(vapply(valid[feature_cols], is.numeric, logical(1))))
